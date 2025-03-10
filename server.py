@@ -1,6 +1,8 @@
-import socket
+import socket, os
 from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives import serialization, padding, hashes
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.backends import default_backend
 
 class Server:
     def __init__(self, port):
@@ -30,10 +32,8 @@ class Server:
         print("Sending:", filename)
         with open(filename, 'rb') as f:
             raw = f.read()
-        # Send actual length ahead of data, with fixed byteorder and size
         self.conn.sendall(len(raw).to_bytes(8, 'big'))
         self.conn.send(raw)  # send data to the client
-
 
     def close(self):
         if not self.conn == None:
@@ -41,37 +41,65 @@ class Server:
         else:
             raise Exception("Erreur: la connexion a été fermée avant d'être instanciée.")
 
-private_key_pass = b"Bonjour"
+#region RSA
+private_key_pass = b"Sefer"
 
-private_key = rsa.generate_private_key(
-        public_exponent=65537,
-        key_size=2048
-)
+cle_privee = rsa.generate_private_key(public_exponent=65537, key_size=2048)
 
-encrypted_pem_private_key = private_key.private_bytes(
-
+crypte_cli_private_key = cle_privee.private_bytes(
     encoding=serialization.Encoding.PEM,
-
     format=serialization.PrivateFormat.PKCS8,
-
-    encryption_algorithm=serialization.BestAvailableEncryption(private_key_pass)
-
-)
+    encryption_algorithm=serialization.BestAvailableEncryption(private_key_pass))
 
 private_key_file = open("input/test.txt", "w")
-
-private_key_file.write(encrypted_pem_private_key.decode())
-
+private_key_file.write(crypte_cli_private_key.decode())
 private_key_file.close()
+#endregion RSA
+
+#region AES
+aes_key = os.urandom(32)  #256 bits
+
+#vecteur initialisation AES
+iv = os.urandom(16)
+
+# criptation
+def encrypt_file_with_aes(file_path, aes_key, iv):
+    cipher = Cipher(algorithms.AES(aes_key), modes.CBC(iv), backend=default_backend())
+    encryptor = cipher.encryptor()
+
+    with open(file_path, 'rb') as f:
+        data = f.read()
+
+    #padding avec un multiple de 16
+    padder = padding.PKCS7(128).padder()
+    padded_data = padder.update(data) + padder.finalize()
+    encrypted_data = encryptor.update(padded_data) + encryptor.finalize()
+
+    return encrypted_data
+
+public_key = cle_privee.public_key()
+pem_public_key = public_key.public_bytes(
+    encoding=serialization.Encoding.PEM,
+    format=serialization.PublicFormat.SubjectPublicKeyInfo
+)
+
+# client_public_key = rsa.load_pem_public_key(crypte_cli_private_key, backend=default_backend())
+# ciphertext_aes_key = client_public_key.encrypt(
+#     aes_key,
+#     rsa.OAEP(
+#         mgf= rsa.mgf1(algorithm=hashes.SHA256()),
+#         algorithm=hashes.SHA256(),
+#         label=None
+#     )
+# )
+
+#endregion AES
 
 if __name__ == '__main__':
     server = Server(5000)
     server.waitForConnection()
     f = "input/test.txt"
     server.sendFile(filename=f)
-    server.sendMessage("Ce message a bien été transmis du serveur au client1")
-    server.sendMessage("Ce message a bien été transmis du serveur au client2")
-    server.sendMessage("Ce message a bien été transmis du serveur au client3")
-    server.sendMessage("Ce message a bien été transmis du serveur au client4")
-    server.sendMessage("Ce message a bien été transmis du serveur au client5")
+    server.sendMessage(crypte_cli_private_key.decode())
+    server.sendMessage("Ce message a bien été transmis du serveur au client")
     server.close()
