@@ -44,29 +44,29 @@ class Server:
             raw = f.read()
         
         if encrypt: # AES
-            raw = self.encrypt_data_with_aes(raw)
+            raw = self.cryptation_AES(raw)
             
         self.conn.sendall(len(raw).to_bytes(8, 'big'))
         self.conn.send(raw)  # send data to the client
 
-    def encrypt_data_with_aes(self, data):
+    def cryptation_AES(self, data):
         cipher = Cipher(algorithms.AES(self.aes_key), modes.CBC(self.iv), backend=default_backend())
-        encryptor = cipher.encryptor()
+        crypteur = cipher.encryptor()
         # padding
         padder = padding.PKCS7(128).padder()
-        padded_data = padder.update(data) + padder.finalize()
-        encrypted_data = encryptor.update(padded_data) + encryptor.finalize()
+        txt_avec_padding = padder.update(data) + padder.finalize()
+        encrypted_data = crypteur.update(txt_avec_padding) + crypteur.finalize()
         
         return self.iv + encrypted_data
     
-    def encrypt_aes_key(self, client_public_key_pem):
+    def decryptation_AES(self, client_public_key_pem):
         # cé publique du client
         client_public_key = serialization.load_pem_public_key(
             client_public_key_pem.encode(),
             backend=default_backend()
         )
         # AES => clé publique du client
-        encrypted_key = client_public_key.encrypt(
+        cle_crypte = client_public_key.encrypt(
             self.aes_key,
             rsa_padding.OAEP(
                 mgf=rsa_padding.MGF1(algorithm=hashes.SHA256()),
@@ -74,9 +74,9 @@ class Server:
                 label=None
             )
         )
-        return base64.b64encode(encrypted_key).decode()
+        return base64.b64encode(cle_crypte).decode()
 
-    def get_public_key_pem(self):
+    def fc_get_publicKey(self):
         return self.public_key.public_bytes(
             encoding=serialization.Encoding.PEM,
             format=serialization.PublicFormat.SubjectPublicKeyInfo
@@ -84,7 +84,7 @@ class Server:
 
     def close(self):
         if not self.conn == None:
-            self.conn.close()  # close the connection
+            self.conn.close() # close the connection
         else:
             raise Exception("Erreur: la connexion a été fermée avant d'être instanciée.")
    
@@ -93,14 +93,14 @@ if __name__ == '__main__':
     server = Server(5000)
     server.waitForConnection()
     
-    server_public_key_pem = server.get_public_key_pem()    
-    server.sendMessage(server_public_key_pem) # envoi clé publique du server
-    client_public_key_pem = server.receiveMessage()[0] # reception clé publique du client
+    server_public_key = server.fc_get_publicKey()    
+    server.sendMessage(server_public_key) # envoi clé publique du server
+    client_public_key_cryp = server.receiveMessage()[0] # reception clé publique du client
     print("Received client public key")
-    input_file = "input/test.txt"
-    server.sendFile(filename=input_file, encrypt=True) # envoi fichier crypté    
-    encrypted_aes_key = server.encrypt_aes_key(client_public_key_pem)
-    server.sendMessage(encrypted_aes_key) # envoi clé AES cryptée (avec clé publique du client)
+    f = "input/test.txt"
+    server.sendFile(filename=f, encrypt=True) # envoi fichier crypté    
+    crypte_cle_aes = server.decryptation_AES(client_public_key_cryp)
+    server.sendMessage(crypte_cle_aes) # envoi clé AES cryptée (avec clé publique du client)
     
     server.sendMessage("Transmission sécurisée terminée")    
     server.close()

@@ -42,7 +42,7 @@ class Client:
             self.bfile += buffer
         # AES
         if decrypt and aes_key:
-            self.bfile = self.decrypt_data_with_aes(self.bfile, aes_key)
+            self.bfile = self.decryptation_txt_AES(self.bfile, aes_key)
 
         return self.bfile
 
@@ -58,21 +58,21 @@ class Client:
         with open(filename, 'wb') as f:
             f.write(self.bfile)
 
-    def decrypt_data_with_aes(self, data, aes_key):
-        iv = data[:16] # premier 16 bit du vecteur d'initialisation
-        encrypted_data = data[16:]
+    def decryptation_txt_AES(self, data, aes_key):
+        iv = data[:16]
+        txt_crypte = data[16:]
         cipher = Cipher(algorithms.AES(aes_key), modes.CBC(iv), backend=default_backend())
-        decryptor = cipher.decryptor()
-        padded_data = decryptor.update(encrypted_data) + decryptor.finalize() # décriptation
+        decripteur = cipher.decryptor()
+        txt_avec_padding = decripteur.update(txt_crypte) + decripteur.finalize() # décriptation
         unpadder = padding.PKCS7(128).unpadder() # enlever padding
-        original_data = unpadder.update(padded_data) + unpadder.finalize()
+        txt_original = unpadder.update(txt_avec_padding) + unpadder.finalize()
         
-        return original_data
+        return txt_original
     
-    def decrypt_aes_key(self, encrypted_key_base64):
-        encrypted_key = base64.b64decode(encrypted_key_base64)        
-        decrypted_key = self.private_key.decrypt( # décryptation AES avec clé privé client
-            encrypted_key,
+    def decrypt_cle_AES(self, encrypted_key_base64):
+        cle_crypte = base64.b64decode(encrypted_key_base64)        
+        cle_decrypte = self.private_key.decrypt( # décryptation AES avec clé privé client
+            cle_crypte,
             rsa_padding.OAEP(
                 mgf=rsa_padding.MGF1(algorithm=hashes.SHA256()),
                 algorithm=hashes.SHA256(),
@@ -80,9 +80,9 @@ class Client:
             )
         )
         
-        return decrypted_key
+        return cle_decrypte
     
-    def get_public_key_pem(self):
+    def fc_get_publicKey(self):
         return self.public_key.public_bytes(
             encoding=serialization.Encoding.PEM,
             format=serialization.PublicFormat.SubjectPublicKeyInfo
@@ -99,12 +99,12 @@ if __name__ == '__main__':
     client.connect()
     
     server_public_key_pem = client.receiveMessage()[0] # recevoir clé publique server    
-    client_public_key_pem = client.get_public_key_pem() # envoie clé publique au server
+    client_public_key_pem = client.fc_get_publicKey() # envoie clé publique au server
     client.sendMessage(client_public_key_pem)
     encrypted_file = client.receiveFile() # recevoir fichier
     encrypted_aes_key_base64 = client.receiveMessage()[0] # recevoir clé privé AES
-    aes_key = client.decrypt_aes_key(encrypted_aes_key_base64) # décryptation fichier AES avec clé client privée
-    filename = client.decrypt_data_with_aes(encrypted_file, aes_key) # décryptation fichier AES
+    aes_key = client.decrypt_cle_AES(encrypted_aes_key_base64) # décryptation fichier AES avec clé client privée
+    filename = client.decryptation_txt_AES(encrypted_file, aes_key) # décryptation fichier AES
     output_file = "output/filename.txt" # décrypté
     client.saveFile(bytes=filename, filename=output_file)
     final_message = client.receiveMessage() # message
