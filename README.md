@@ -15,9 +15,9 @@ Here a step-by-step todo list to build the required application:
 
 1. generate RSA public and private keys on both side (client & server) ✔
 2. exchange public keys to initiate a secured communication ✔
-3. the server must generate a key to encrypt the file (to send) with AES
-4. the server's key is crypted with the client's public key and sent to it
-5. the client receives the key and decrypt it
+3. the server must generate a key to encrypt the file (to send) with AES ✔
+4. the server's key is crypted with the client's public key and sent to it ✔
+5. the client receives the key and decrypt it ✔
 
 -------- Compute the file's hash ----------
 
