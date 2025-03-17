@@ -89,9 +89,9 @@ class Client:
         )
         return donnee_hash
     
-    def info_txt_hash(self, data): # SHA-3
+    def info_txt_hash(self, txt): # SHA-3
         infoSAH = hashes.Hash(hashes.SHA3_256(), backend=default_backend())
-        infoSAH.update(data)
+        infoSAH.update(txt)
         return infoSAH.finalize()
     
     def verif_txt(self, data_txt, hash_normal): # hash
