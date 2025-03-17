@@ -10,8 +10,7 @@ class Client:
         self.port = port
         self.client_socket = socket.socket()  # instantiate
         self.bfile = None
-        # génération RSA
-        self.private_key = rsa.generate_private_key(
+        self.private_key = rsa.generate_private_key( # RSA
             public_exponent=65537,
             key_size=2048,
             backend=default_backend()
@@ -40,10 +39,6 @@ class Client:
             if not buffer:
                 raise Exception("Incomplete file received")
             self.bfile += buffer
-        # AES
-        if decrypt and aes_key:
-            self.bfile = self.decryptation_txt_AES(self.bfile, aes_key)
-
         return self.bfile
 
     def receiveMessage(self):
@@ -54,9 +49,9 @@ class Client:
         print("Sending:", msg)
         self.client_socket.send(str.encode(msg + "@!"))
 
-    def saveFile(self, bytes: b"", filename: str):
+    def saveFile(self, data, filename: str):
         with open(filename, 'wb') as f:
-            f.write(self.bfile)
+            f.write(data)
 
     def decryptation_txt_AES(self, data, aes_key):
         iv = data[:16]
@@ -64,14 +59,14 @@ class Client:
         cipher = Cipher(algorithms.AES(aes_key), modes.CBC(iv), backend=default_backend())
         decripteur = cipher.decryptor()
         txt_avec_padding = decripteur.update(txt_crypte) + decripteur.finalize() # décriptation
-        unpadder = padding.PKCS7(128).unpadder() # enlever padding
+        unpadder = padding.PKCS7(128).unpadder() # -- padding
         txt_original = unpadder.update(txt_avec_padding) + unpadder.finalize()
         
         return txt_original
     
     def decrypt_cle_AES(self, encrypted_key_base64):
         cle_crypte = base64.b64decode(encrypted_key_base64)        
-        cle_decrypte = self.private_key.decrypt( # décryptation AES avec clé privé client
+        cle_decrypte = self.private_key.decrypt( 
             cle_crypte,
             rsa_padding.OAEP(
                 mgf=rsa_padding.MGF1(algorithm=hashes.SHA256()),
@@ -81,6 +76,27 @@ class Client:
         )
         
         return cle_decrypte
+    
+    def decrypt_hash(self, hash_crypte):
+        hash_cryptee = base64.b64decode(hash_crypte)
+        donnee_hash = self.private_key.decrypt(
+            hash_cryptee,
+            rsa_padding.OAEP(
+                mgf=rsa_padding.MGF1(algorithm=hashes.SHA256()),
+                algorithm=hashes.SHA256(),
+                label=None
+            )
+        )
+        return donnee_hash
+    
+    def info_txt_hash(self, data): # SHA-3
+        infoSAH = hashes.Hash(hashes.SHA3_256(), backend=default_backend())
+        infoSAH.update(data)
+        return infoSAH.finalize()
+    
+    def verif_txt(self, data_txt, hash_normal): # hash
+        hash = self.info_txt_hash(data_txt)
+        return hash == hash_normal
     
     def fc_get_publicKey(self):
         return self.public_key.public_bytes(
@@ -97,17 +113,26 @@ class Client:
 if __name__ == '__main__': 
     client = Client(5000)
     client.connect()
-    
-    server_public_key_pem = client.receiveMessage()[0] # recevoir clé publique server    
-    client_public_key_pem = client.fc_get_publicKey() # envoie clé publique au server
-    client.sendMessage(client_public_key_pem)
-    encrypted_file = client.receiveFile() # recevoir fichier
-    encrypted_aes_key_base64 = client.receiveMessage()[0] # recevoir clé privé AES
-    aes_key = client.decrypt_cle_AES(encrypted_aes_key_base64) # décryptation fichier AES avec clé client privée
-    filename = client.decryptation_txt_AES(encrypted_file, aes_key) # décryptation fichier AES
-    output_file = "output/filename.txt" # décrypté
-    client.saveFile(bytes=filename, filename=output_file)
-    final_message = client.receiveMessage() # message
-    print(final_message)
+    serveur_cle_publique = client.receiveMessage()[0]  
+    client_cle_publique = client.fc_get_publicKey() 
+    client.sendMessage(client_cle_publique)
+    txt_cryptee = client.receiveFile()
+    # AES chiffré
+    crypte_aes = client.receiveMessage()[0]
+    cle_aes = client.decrypt_cle_AES(crypte_aes)
+    print("clé AES décryptée")
+    # hash chiffré
+    crypte_hash = client.receiveMessage()[0]
+    hash_normal = client.decrypt_hash(crypte_hash)
+    print(f"Teste hash (SHA-3): {hash_normal.hex()}")
+    # intégrité
+    exactitude_txt = client.verif_txt(txt_cryptee, hash_normal)
+    if exactitude_txt: print("Message pas corrompu 😇😎😋😜😝")
+    else: raise Exception("Message corrommpu 👿🧛‍♀️👹👺")
+    # déchiffrement AES
+    txt_decryptee = client.decryptation_txt_AES(txt_cryptee, cle_aes)
+    f = "output/filename.txt"
+    client.saveFile(txt_decryptee, f)
+    print("Message décrypté : ", txt_decryptee)
 
     client.close()
