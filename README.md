@@ -22,8 +22,8 @@ Here a step-by-step todo list to build the required application:
 -------- Compute the file's hash ----------
 
 6. the server computes the hash of its encrypted file with SHA-3 ✔
-7. the server encrypts the hash with the client's public key and send it ✔
-8. the client received the hash and decrypt it with its private key ✔
+7. the server encrypts the hash with the client's public key and send it
+8. the client received the hash and decrypt it with its private key
 
 -------- Secure the file transfer with AES ----------
 

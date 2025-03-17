@@ -1,4 +1,4 @@
-import socket, os, base64
+import socket, base64
 from cryptography.hazmat.primitives.asymmetric import rsa, padding as rsa_padding
 from cryptography.hazmat.primitives import serialization, padding, hashes
 from cryptography.hazmat.primitives.ciphers import Cipher, modes, algorithms 
@@ -128,7 +128,7 @@ if __name__ == '__main__':
     # intégrité
     exactitude_txt = client.verif_txt(txt_cryptee, hash_normal)
     if exactitude_txt: print("Message pas corrompu 😇😎😋😜😝")
-    else: raise Exception("Message corrommpu 👿🧛‍♀️👹👺")
+    else: raise Exception("Message corrommpu 🧛‍♀️👿👹👺")
     # déchiffrement AES
     txt_decryptee = client.decryptation_txt_AES(txt_cryptee, cle_aes)
     f = "output/filename.txt"
