@@ -27,7 +27,7 @@ Here a step-by-step todo list to build the required application:
 
 -------- Secure the file transfer with AES ----------
 
-9. the server encrypts its file with AES and send it to the client
-10. the client receives the file and compute the hash value of this file. It compares the hash to the received one
-11. the client decrypts the file with the key received
-12. the client stores the uncrypted file on its disk
+9. the server encrypts its file with AES and send it to the client ✔
+10. the client receives the file and compute the hash value of this file. It compares the hash to the received one ✔
+11. the client decrypts the file with the key received ✔
+12. the client stores the uncrypted file on its disk ✔
