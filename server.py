@@ -136,5 +136,5 @@ if __name__ == '__main__':
     server.sendMessage(crypte_cle_aes)
     server.sendMessage(hash_cryptee) 
     
-    server.sendMessage("\033[0;93m\nTransmission sécurisée terminée\033[00m")    
+    print(f"\033[0;93m\nTransmission sécurisée terminée\033[00m")    
     server.close()
